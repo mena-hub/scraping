@@ -5,33 +5,29 @@
 
 import pymongo
 from itemadapter import ItemAdapter
+from website_scraper.mongo_provider import MongoProvider
 
 class MongoPipeline:
 
-    collection_name = 'andreaga_posts'
-
-    def __init__(self, mongo_uri, mongo_db):
-        self.mongo_uri = mongo_uri
-        self.mongo_db = mongo_db
+    def __init__(self, settings):
+        self.mongo_provider = MongoProvider(
+            settings.get('MONGO_URI'),
+            settings.get('MONGO_DATABASE')
+        )
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(
-            mongo_uri=crawler.settings.get('MONGO_URI'),
-            mongo_db=crawler.settings.get('MONGO_DATABASE', 'website_scraper')
-        )
+        return cls(crawler.settings)
 
     def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri)
-        self.db = self.client[self.mongo_db]
+        self.collection = self.mongo_provider.get_collection()
 
     def close_spider(self, spider):
-        self.client.close()
+        self.mongo_provider.close_connection()
 
     def process_item(self, item, spider):
-        self.db[self.collection_name].find_one_and_update(
+        self.collection.find_one_and_update(
             {"url": item["url"]},
             {"$set": ItemAdapter(item).asdict()},
-            upsert=True
-        )
+            upsert=True)
         return item
