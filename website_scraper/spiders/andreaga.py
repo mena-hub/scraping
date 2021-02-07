@@ -1,22 +1,36 @@
 import scrapy
 import re
 from website_scraper.items import WebsiteScraperItem
+from website_scraper.mongo_provider import MongoProvider
 
 class AndreagaSpider(scrapy.Spider):
     name = 'andreaga'
     start_urls = ['http://andreaga.com/blog/']
 
-    def __init__(self, limit_pages=None, *args, **kwargs):
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        kwargs['mongo_uri'] = crawler.settings.get("MONGO_URI")
+        kwargs['mongo_database'] = crawler.settings.get('MONGO_DATABASE')
+        return super(AndreagaSpider, cls).from_crawler(crawler, *args, **kwargs)
+
+    def __init__(self, limit_pages=None, mongo_uri=None, mongo_database=None, *args, **kwargs):
         super(AndreagaSpider, self).__init__(*args, **kwargs)
         if limit_pages is not None:
             self.limit_pages = int(limit_pages)
         else:
             self.limit_pages = 0
+        self.mongo_provider = MongoProvider(mongo_uri, mongo_database)
+        self.collection = self.mongo_provider.get_collection()
+        last_items = self.collection.find().sort("published_at", -1).limit(1)
+        self.last_scraped_url = last_items[0]["url"] if last_items.count() else None
 
     def parse(self, response):
         for entry in response.css(".hentry"):
             title = entry.css(".entry-title")
             url = title.css("::attr(href)").extract_first()
+            if url == self.last_scraped_url:
+                print("Reached last item scraped, breaking loop")
+                return
             yield scrapy.Request(url, callback=self.parse_entry)
         if response.css(".nav-previous>a"):
             prev_page_url = response.css(".nav-previous>a::attr(href)").extract_first()
@@ -24,7 +38,7 @@ class AndreagaSpider(scrapy.Spider):
             prev_page_number = int(match.groups()[0])
             if prev_page_number <= self.limit_pages:
                 yield scrapy.Request(prev_page_url)
-    
+
     def parse_entry(self, response):
         item = WebsiteScraperItem(
             title = response.css("h1::text").extract_first(),
