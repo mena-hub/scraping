@@ -1,5 +1,6 @@
 import scrapy
 import re
+from website_scraper.items import WebsiteScraperItem
 
 class AndreagaSpider(scrapy.Spider):
     name = 'andreaga'
@@ -25,4 +26,21 @@ class AndreagaSpider(scrapy.Spider):
                 yield scrapy.Request(prev_page_url)
     
     def parse_entry(self, response):
-        pass
+        item = WebsiteScraperItem(
+            title = response.css("h1::text").extract_first(),
+            author = response.css(".url::text").extract_first().strip(),
+            published_at = response.css(".entry-date::attr(datetime)").extract_first(),
+            content = self.extract_content(response),
+            url = response.url
+        )
+        yield(item)
+
+    def extract_content(self, response):
+        paragraphs_texts = [
+        p.css(" ::text").extract()
+            for p in response.css(".entry-content>p")
+        ]
+        paragraphs = ["".join(p) for p in paragraphs_texts]
+        paragraphs = [re.subn("\n", "", p)[0] for p in paragraphs]
+        paragraphs = [p for p in paragraphs if p.strip() != ""]
+        return "\n\n".join(paragraphs)
