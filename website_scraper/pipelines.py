@@ -29,5 +29,9 @@ class MongoPipeline:
         self.client.close()
 
     def process_item(self, item, spider):
-        self.db[self.collection_name].insert_one(ItemAdapter(item).asdict())
+        self.db[self.collection_name].find_one_and_update(
+            {"url": item["url"]},
+            {"$set": ItemAdapter(item).asdict()},
+            upsert=True
+        )
         return item
