@@ -5,6 +5,7 @@
 - How to scrape
 - Export the items to a JSON file
 - Store items in database
+- Class method(s)
 
 **¿Nos hace falta algo?**
 - [Python 3.6 +](https://www.python.org/)
@@ -81,7 +82,7 @@ Exportación
 
 MONGO
 
-[Ir al posteo original](https://blog.dipasquale.fr/)
+[Ir al posteo original.](https://blog.dipasquale.fr/)
 
 **NOTA**
 
